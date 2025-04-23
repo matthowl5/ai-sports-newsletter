@@ -2,17 +2,15 @@ import requests
 import os
 from dotenv import load_dotenv
 from datetime import datetime, timedelta
+from bs4 import BeautifulSoup
 
 # Load environment variables
 load_dotenv()
 API_KEY = os.getenv("GUARDIAN_API_KEY")
 
 def get_recent_guardian_sports_news():
-    # Set time range for the last 24 hours
     now = datetime.utcnow()
     yesterday = now - timedelta(days=1)
-    from_date = yesterday.strftime("%Y-%m-%dT%H:%M:%SZ")
-    to_date = now.strftime("%Y-%m-%dT%H:%M:%SZ")
 
     url = (
         "https://content.guardianapis.com/search?"
@@ -29,17 +27,34 @@ def get_recent_guardian_sports_news():
 
     if response.status_code != 200 or "response" not in data:
         print("Failed to fetch news:", data.get("message", "Unknown error"))
-        return
+        return []
 
     articles = data["response"]["results"]
     if not articles:
         print("No recent sports articles found.")
-        return
+        return []
 
-    print(f"⚽ Sports News from The Guardian (last 24 hours):\n")
+    cleaned_articles = []
     for i, article in enumerate(articles[:5], start=1):
-        print(f"{i}. {article['webTitle']}")
-        print(f"   {article['webUrl']}\n")
+        title = article["webTitle"]
+        url = article["webUrl"]
+        body_html = article.get("fields", {}).get("body", "")
+
+        # Clean the HTML body into plain text
+        soup = BeautifulSoup(body_html, "html.parser")
+        full_text = soup.get_text()
+
+        cleaned_articles.append({
+            "title": title,
+            "url": url,
+            "text": full_text
+        })
+
+    return cleaned_articles
 
 if __name__ == "__main__":
-    get_recent_guardian_sports_news()
+    articles = get_recent_guardian_sports_news()
+    for i, article in enumerate(articles, start=1):
+        print(f"{i}. {article['title']}")
+        print(f"URL: {article['url']}")
+        print(f"Text preview: {article['text'][:300]}...\n")
