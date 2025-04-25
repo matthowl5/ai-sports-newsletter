@@ -1,16 +1,17 @@
 import os
-import openai
+
 from dotenv import load_dotenv
+
 import time
+from openai import OpenAI
 
-# Load OpenAI API key
+
+# Load .env variables
 load_dotenv()
-openai.api_key = os.getenv("OPENAI_API_KEY")
 
-# GPT model to use
-MODEL = "gpt-3.5-turbo"
+# You don't need to pass api_key if it's in the environment
+client = OpenAI()
 
-# Prompt template
 SUMMARY_PROMPT_TEMPLATE = (
     "Summarize the following sports news article in 2–3 clear, objective, and professional-sounding sentences, "
     "suitable for inclusion in an email newsletter.\n\nArticle:\n{article_text}"
@@ -18,9 +19,9 @@ SUMMARY_PROMPT_TEMPLATE = (
 
 def summarize_article_text(article_text):
     try:
-        prompt = SUMMARY_PROMPT_TEMPLATE.format(article_text=article_text[:3000])  # Truncate if needed
-        response = openai.ChatCompletion.create(
-            model=MODEL,
+        prompt = SUMMARY_PROMPT_TEMPLATE.format(article_text=article_text[:3000])
+        response = client.chat.completions.create(
+            model="gpt-3.5-turbo",
             messages=[
                 {"role": "system", "content": "You are a helpful assistant that summarizes sports articles."},
                 {"role": "user", "content": prompt}
@@ -28,11 +29,10 @@ def summarize_article_text(article_text):
             temperature=0.5,
             max_tokens=200
         )
-        summary = response['choices'][0]['message']['content'].strip()
-        return summary
+        return response.choices[0].message.content.strip()
 
-    except openai.error.OpenAIError as e:
-        print(f"Error summarizing article: {e}")
+    except Exception as e:
+        print(f"Error during summarization: {e}")
         return "Summary unavailable due to an API error."
 
 def summarize_articles(articles):
@@ -45,22 +45,21 @@ def summarize_articles(articles):
             "url": article["url"],
             "summary": summary
         })
-        time.sleep(1)  # Be kind to the API
+        time.sleep(1)
     return summarized
 
 if __name__ == "__main__":
-    # Example usage (replace with actual article list from fetch_news.py)
     sample_articles = [
         {
             "title": "Sample Title",
             "url": "https://example.com/article",
-            "text": "This is the full article text. It can be quite long and needs to be summarized into a few concise sentences."
+            "text": "This is a long article about an exciting sports event that needs to be summarized concisely."
         }
     ]
-
     summaries = summarize_articles(sample_articles)
-    for item in summaries:
+    for summary in summaries:
         print("\n--- Summary ---")
-        print(f"Title: {item['title']}")
-        print(f"URL: {item['url']}")
-        print(f"Summary: {item['summary']}")
+        print(f"Title: {summary['title']}")
+        print(f"URL: {summary['url']}")
+        print(f"Summary: {summary['summary']}")
+
